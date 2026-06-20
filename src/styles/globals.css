@@ -1,0 +1,219 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== テーマ用 CSS 変数 ===== */
+:root {
+  /* 信号色（テーマ非依存・仕様準拠） */
+  --signal-high: #00e676;
+  --signal-low: #334155;
+
+  /* ライトテーマ */
+  --canvas-bg: #f1f5f9;
+  --gate-fill: #ffffff;
+  --gate-active-fill: #dcfce7;
+  --gate-stroke: #94a3b8;
+  --gate-text: #1e293b;
+  --port-fill: #cbd5e1;
+  --lamp-off: #e2e8f0;
+  --muted-text: #64748b;
+  --accent: #10b981;
+}
+
+.dark {
+  --canvas-bg: #0f172a;
+  --gate-fill: #1e293b;
+  --gate-active-fill: #064e3b;
+  --gate-stroke: #475569;
+  --gate-text: #f1f5f9;
+  --port-fill: #334155;
+  --lamp-off: #334155;
+  --muted-text: #94a3b8;
+  --accent: #34d399;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+/* ===== キャンバス ===== */
+.lcs-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--canvas-bg);
+  cursor: grab;
+}
+.lcs-canvas:active {
+  cursor: grabbing;
+}
+.lcs-canvas-bg {
+  fill: var(--canvas-bg);
+}
+
+/* ===== ゲート ===== */
+.lcs-gate {
+  cursor: grab;
+}
+.lcs-gate:active {
+  cursor: grabbing;
+}
+.lcs-gate-body {
+  fill: var(--gate-fill);
+  stroke: var(--gate-stroke);
+  stroke-width: 2;
+  transition:
+    fill 0.15s ease,
+    stroke 0.15s ease;
+}
+.lcs-gate-body.active {
+  fill: var(--gate-active-fill);
+  stroke: var(--signal-high);
+  filter: drop-shadow(0 0 4px var(--signal-high));
+}
+.lcs-gate-body.selected {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.lcs-gate-body.forbidden {
+  stroke: #f59e0b;
+  stroke-dasharray: 5 3;
+}
+
+.lcs-gate-label {
+  fill: var(--gate-text);
+  font-weight: 700;
+  font-size: 14px;
+  user-select: none;
+}
+.lcs-gate-value {
+  fill: var(--gate-text);
+  font-weight: 700;
+  font-size: 20px;
+  user-select: none;
+}
+.lcs-gate-sublabel {
+  fill: var(--muted-text);
+  font-weight: 600;
+  font-size: 10px;
+  user-select: none;
+}
+.lcs-port-label {
+  fill: var(--muted-text);
+  font-weight: 600;
+  font-size: 9px;
+  user-select: none;
+}
+
+/* OUTPUT ランプ */
+.lcs-lamp {
+  fill: var(--lamp-off);
+  stroke: var(--gate-stroke);
+  stroke-width: 1.5;
+  transition: fill 0.15s ease;
+}
+.lcs-lamp.on {
+  fill: var(--signal-high);
+  filter: drop-shadow(0 0 5px var(--signal-high));
+}
+
+/* ===== ポート ===== */
+.lcs-port {
+  fill: var(--port-fill);
+  stroke: var(--gate-stroke);
+  stroke-width: 1.5;
+  cursor: crosshair;
+  transition: fill 0.15s ease;
+}
+.lcs-port.high {
+  fill: var(--signal-high);
+}
+.lcs-port.candidate {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+/* ===== 配線 ===== */
+.lcs-wire {
+  fill: none;
+  stroke: var(--signal-low);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke 0.15s ease;
+}
+.lcs-wire.high {
+  stroke: var(--signal-high);
+  filter: drop-shadow(0 0 4px var(--signal-high));
+}
+.lcs-wire-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+}
+.lcs-preview {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+/* ===== 削除ボタン・警告 ===== */
+.lcs-delete {
+  cursor: pointer;
+}
+.lcs-delete-bg {
+  fill: #ef4444;
+}
+.lcs-delete-x {
+  fill: #ffffff;
+  font-weight: 700;
+  font-size: 11px;
+  pointer-events: none;
+}
+.lcs-warning {
+  fill: #f59e0b;
+  font-weight: 700;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* ===== 波形ビュー ===== */
+.lcs-wave {
+  fill: none;
+  stroke: var(--muted-text);
+  stroke-width: 2;
+}
+.lcs-wave.high {
+  stroke: var(--signal-high);
+}
+.lcs-wave-baseline {
+  stroke: var(--gate-stroke);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.4;
+}
+
+/* ===== 信号フローのアニメーション ===== */
+/* 動きを許容するユーザーにだけ、HIGH の配線に流れる演出を加える */
+@media (prefers-reduced-motion: no-preference) {
+  .lcs-wire.high {
+    stroke-dasharray: 10 6;
+    animation: lcs-flow 0.5s linear infinite;
+  }
+  @keyframes lcs-flow {
+    to {
+      stroke-dashoffset: -16;
+    }
+  }
+}
