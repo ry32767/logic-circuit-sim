@@ -66,6 +66,7 @@ export interface CircuitStore {
   fitNonce: number; // 「全体表示」要求のたびに増える（Canvas が監視してフィットする）
   showTutorial: boolean;
   showWaveform: boolean;
+  infoSheetOpen: boolean; // モバイルの情報シートの開閉（長押しで開く）
 
   // --- ゲート操作 ---
   addGate: (type: GateType, x: number, y: number) => string;
@@ -95,6 +96,7 @@ export interface CircuitStore {
   dismissTutorial: () => void;
   openTutorial: () => void;
   toggleWaveform: () => void;
+  setInfoSheet: (open: boolean) => void;
 
   // --- 回路全体 ---
   loadCircuit: (circuit: Circuit) => void;
@@ -113,6 +115,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   fitNonce: 0,
   showTutorial: initialTutorial(),
   showWaveform: false,
+  infoSheetOpen: false,
 
   addGate: (type, x, y) => {
     const id = uid('g');
@@ -249,6 +252,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   openTutorial: () => set({ showTutorial: true }),
 
   toggleWaveform: () => set((s) => ({ showWaveform: !s.showWaveform })),
+
+  setInfoSheet: (open) => set({ infoSheetOpen: open }),
 
   loadCircuit: (circuit) => {
     // メモリを初期化（CLK は false 始まり）

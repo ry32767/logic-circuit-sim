@@ -23,7 +23,7 @@ const STEPS: { title: string; body: string; icon: IconName }[] = [
   {
     icon: 'grid_on',
     title: '真理値表で確かめる',
-    body: 'ゲートを選ぶと右パネルに真理値表が出ます。今の入力に対応する行がハイライトされます。',
+    body: 'ゲートを選ぶと右パネルに真理値表が出ます（スマホはゲートを長押し、または右下のℹ️ボタン）。今の入力に対応する行がハイライトされます。',
   },
   {
     icon: 'auto_awesome',

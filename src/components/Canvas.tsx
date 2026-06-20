@@ -24,6 +24,7 @@ import { GATE_META } from '../lib/circuit/gates';
 import type { GateType } from '../types/circuit';
 
 const MOVE_THRESHOLD = 5; // タップとドラッグを区別する移動量（px）
+const LONG_PRESS_MS = 500; // 長押しで情報パネルを開くまでの時間
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
 const GATE_DND_TYPE = 'application/gate-type';
@@ -31,7 +32,14 @@ const GATE_DND_TYPE = 'application/gate-type';
 // 現在のジェスチャ種別。pointerId でどの指の操作かを区別する。
 type Gesture =
   | { kind: 'none' }
-  | { kind: 'gate'; pointerId: number; gateId: string; isInput: boolean }
+  | {
+      kind: 'gate';
+      pointerId: number;
+      gateId: string;
+      isInput: boolean;
+      startX: number;
+      startY: number;
+    }
   | {
       kind: 'pan';
       pointerId: number;
@@ -49,6 +57,9 @@ export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
   const gesture = useRef<Gesture>({ kind: 'none' });
   const moved = useRef(false); // ゲート/パンが実際に動いたか（タップ判定用）
+  // 長押し検出用のタイマーと、長押しが発火したかのフラグ
+  const longPressTimer = useRef<number | null>(null);
+  const longFired = useRef(false);
   // 押下中のポインタ（ピンチ判定に使う）
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinch = useRef<{
@@ -70,11 +81,20 @@ export function Canvas() {
   const removeWire = useCircuitStore((s) => s.removeWire);
   const toggleInput = useCircuitStore((s) => s.toggleInput);
   const addGate = useCircuitStore((s) => s.addGate);
+  const setInfoSheet = useCircuitStore((s) => s.setInfoSheet);
 
   const result = useCircuit();
   const { startGateDrag, dragTo, endDrag } = useDrag();
   const { pending, preview, handlePortClick, updatePreview, cancel } =
     useConnect();
+
+  // 長押しタイマーを解除する
+  function cancelLongPress() {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }
 
   // 画面座標をキャンバス（論理）座標へ変換する
   function toCanvas(cx: number, cy: number) {
@@ -98,6 +118,7 @@ export function Canvas() {
       anchorY: anchor.y,
     };
     endDrag();
+    cancelLongPress();
     gesture.current = { kind: 'none' };
   }
 
@@ -138,12 +159,23 @@ export function Canvas() {
     selectGate(gate.id);
     startGateDrag(g, toCanvas(e.clientX, e.clientY));
     moved.current = false;
+    longFired.current = false;
     gesture.current = {
       kind: 'gate',
       pointerId: e.pointerId,
       gateId: gate.id,
       isInput: gate.type === 'INPUT',
+      startX: e.clientX,
+      startY: e.clientY,
     };
+    // 長押しで情報パネルを開く（動かさずに押し続けた場合のみ）
+    cancelLongPress();
+    longPressTimer.current = window.setTimeout(() => {
+      if (!moved.current) {
+        longFired.current = true;
+        setInfoSheet(true);
+      }
+    }, LONG_PRESS_MS);
   }
 
   // --- ポートの押下：配線接続 ---
@@ -190,8 +222,18 @@ export function Canvas() {
 
     const g = gesture.current;
     if (g.kind === 'gate' && g.pointerId === e.pointerId) {
-      dragTo(toCanvas(e.clientX, e.clientY));
-      moved.current = true;
+      const dx = e.clientX - g.startX;
+      const dy = e.clientY - g.startY;
+      // 少し動いたらドラッグ開始（それまでは長押し判定を維持）
+      if (
+        moved.current ||
+        Math.abs(dx) > MOVE_THRESHOLD ||
+        Math.abs(dy) > MOVE_THRESHOLD
+      ) {
+        moved.current = true;
+        cancelLongPress();
+        dragTo(toCanvas(e.clientX, e.clientY));
+      }
     } else if (g.kind === 'pan' && g.pointerId === e.pointerId) {
       const v = useCircuitStore.getState().view;
       const dx = e.clientX - g.startX;
@@ -215,8 +257,11 @@ export function Canvas() {
 
     const g = gesture.current;
     if (g.kind === 'gate' && g.pointerId === e.pointerId) {
-      // ほとんど動いていなければタップ扱い：INPUT は値をトグルする
-      if (!moved.current && g.isInput) toggleInput(g.gateId);
+      cancelLongPress();
+      // ほとんど動かさず・長押しもしていなければタップ扱い：INPUT は値をトグル
+      if (!moved.current && !longFired.current && g.isInput) {
+        toggleInput(g.gateId);
+      }
       endDrag();
       gesture.current = { kind: 'none' };
     } else if (g.kind === 'pan' && g.pointerId === e.pointerId) {
@@ -237,6 +282,9 @@ export function Canvas() {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', up);
+      if (longPressTimer.current !== null) {
+        window.clearTimeout(longPressTimer.current);
+      }
     };
   }, []);
 

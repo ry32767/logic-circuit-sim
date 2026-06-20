@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useCircuitStore } from './stores/circuitStore';
 import { useClocks } from './hooks/useCircuit';
 import { Toolbar } from './components/Toolbar';
@@ -13,9 +13,9 @@ import { readCircuitFromUrl } from './lib/storage/share';
 
 export default function App() {
   const theme = useCircuitStore((s) => s.theme);
-  const selectedGateId = useCircuitStore((s) => s.selectedGateId);
   const showWaveform = useCircuitStore((s) => s.showWaveform);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetOpen = useCircuitStore((s) => s.infoSheetOpen);
+  const setInfoSheet = useCircuitStore((s) => s.setInfoSheet);
 
   // CLK タイマーを起動する
   useClocks();
@@ -34,11 +34,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
-
-  // ゲートを選んだらモバイルの情報シートを自動で開く
-  useEffect(() => {
-    if (selectedGateId) setSheetOpen(true);
-  }, [selectedGateId]);
 
   return (
     <div className="flex h-[100dvh] flex-col bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
@@ -82,7 +77,7 @@ export default function App() {
       {/* 情報シートを開くフローティングボタン（モバイル） */}
       <button
         type="button"
-        onClick={() => setSheetOpen((o) => !o)}
+        onClick={() => setInfoSheet(!sheetOpen)}
         className="fixed bottom-24 right-4 z-30 rounded-full bg-emerald-500 p-3 text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 md:hidden"
         aria-label={sheetOpen ? '情報パネルを閉じる' : '情報パネルを開く'}
       >
