@@ -1,30 +1,32 @@
 import { useEffect, useState } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
+import { Icon } from './Icon';
+import type { IconName } from '../lib/icons';
 
 // チュートリアルの各ステップ
-const STEPS: { title: string; body: string; icon: string }[] = [
+const STEPS: { title: string; body: string; icon: IconName }[] = [
   {
-    icon: '🧩',
+    icon: 'add_box',
     title: 'ゲートを置く',
     body: 'サイドバーのゲートをキャンバスへドラッグ、またはタップして配置します。',
   },
   {
-    icon: '🔗',
+    icon: 'share',
     title: '配線でつなぐ',
     body: '出力ポート（右側）→ 入力ポート（左側）の順にタップすると配線できます。配線をタップすると削除します。',
   },
   {
-    icon: '🔘',
+    icon: 'toggle_on',
     title: 'スイッチを切り替える',
     body: 'INPUT スイッチをタップすると 0 / 1 が切り替わり、信号が緑色に光って流れます。',
   },
   {
-    icon: '📊',
+    icon: 'grid_on',
     title: '真理値表で確かめる',
     body: 'ゲートを選ぶと右パネルに真理値表が出ます。今の入力に対応する行がハイライトされます。',
   },
   {
-    icon: '✨',
+    icon: 'auto_awesome',
     title: 'プリセットで遊ぶ',
     body: '上部の「プリセット」から半加算器やフリップフロップを読み込めます。保存・読込で回路を持ち出せます。',
   },
@@ -64,8 +66,10 @@ export function Tutorial() {
     >
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800">
         <div className="mb-4 text-center">
-          <div aria-hidden="true" className="mb-2 text-4xl">
-            {current.icon}
+          <div className="mb-3 flex justify-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400">
+              <Icon name={current.icon} size={30} />
+            </span>
           </div>
           <h2
             id="tutorial-title"

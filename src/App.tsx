@@ -8,6 +8,7 @@ import { TruthTable } from './components/TruthTable';
 import { GateInfo } from './components/GateInfo';
 import { Tutorial } from './components/Tutorial';
 import { WaveformView } from './components/WaveformView';
+import { Icon } from './components/Icon';
 import { readCircuitFromUrl } from './lib/storage/share';
 
 export default function App() {
@@ -84,7 +85,7 @@ export default function App() {
         className="fixed bottom-24 right-4 z-30 rounded-full bg-emerald-500 p-3 text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-700 md:hidden"
         aria-label={sheetOpen ? '情報パネルを閉じる' : '情報パネルを開く'}
       >
-        <span aria-hidden="true">{sheetOpen ? '✕' : 'ℹ️'}</span>
+        <Icon name={sheetOpen ? 'close' : 'info'} size={24} />
       </button>
 
       {/* 情報ボトムシート（モバイル） */}

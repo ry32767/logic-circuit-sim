@@ -176,15 +176,13 @@ body {
   fill: #ef4444;
 }
 .lcs-delete-x {
-  fill: #ffffff;
-  font-weight: 700;
-  font-size: 11px;
+  stroke: #ffffff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
   pointer-events: none;
 }
 .lcs-warning {
   fill: #f59e0b;
-  font-weight: 700;
-  font-size: 13px;
   pointer-events: none;
 }
 

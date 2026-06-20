@@ -6,6 +6,7 @@ import {
   importCircuitFromFile,
 } from '../lib/storage/json';
 import { buildShareUrl, updateUrlHash } from '../lib/storage/share';
+import { Icon } from './Icon';
 
 // ツールバー共通のボタンスタイル
 const btn =
@@ -65,9 +66,7 @@ export function Toolbar() {
   return (
     <header className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="text-lg">
-          🔌
-        </span>
+        <Icon name="memory" size={24} className="text-emerald-500" />
         <h1 className="text-base font-bold text-slate-800 dark:text-slate-100">
           Logic Circuit Sim
         </h1>
@@ -76,15 +75,15 @@ export function Toolbar() {
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <PresetMenu />
         <button type="button" className={btn} onClick={handleSave} aria-label="回路を JSON で保存">
-          <span aria-hidden="true">💾</span>
+          <Icon name="download" />
           <span className="hidden sm:inline">保存</span>
         </button>
         <button type="button" className={btn} onClick={handleLoad} aria-label="JSON から回路を読込">
-          <span aria-hidden="true">📂</span>
+          <Icon name="upload" />
           <span className="hidden sm:inline">読込</span>
         </button>
         <button type="button" className={btn} onClick={handleShare} aria-label="回路の共有 URL を作成">
-          <span aria-hidden="true">🔗</span>
+          <Icon name="share" />
           <span className="hidden sm:inline">共有</span>
         </button>
         <button
@@ -94,7 +93,7 @@ export function Toolbar() {
           aria-pressed={showWaveform}
           aria-label="波形ビューを表示／非表示"
         >
-          <span aria-hidden="true">📈</span>
+          <Icon name="show_chart" />
           <span className="hidden sm:inline">波形</span>
         </button>
         <button
@@ -105,15 +104,15 @@ export function Toolbar() {
           }}
           aria-label="キャンバスをクリア"
         >
-          <span aria-hidden="true">🗑️</span>
+          <Icon name="delete" />
           <span className="hidden sm:inline">クリア</span>
         </button>
         <button type="button" className={btn} onClick={resetView} aria-label="表示位置をリセット">
-          <span aria-hidden="true">🎯</span>
+          <Icon name="center_focus" />
           <span className="hidden sm:inline">表示</span>
         </button>
         <button type="button" className={btn} onClick={openTutorial} aria-label="使い方を表示">
-          <span aria-hidden="true">❓</span>
+          <Icon name="help" />
           <span className="hidden sm:inline">使い方</span>
         </button>
         <button
@@ -122,7 +121,7 @@ export function Toolbar() {
           onClick={toggleTheme}
           aria-label={theme === 'dark' ? 'ライトテーマに切替' : 'ダークテーマに切替'}
         >
-          <span aria-hidden="true">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} />
         </button>
       </div>
 

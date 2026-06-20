@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
 import { GATE_META } from '../lib/circuit/gates';
+import { Icon } from './Icon';
 import {
   isTraceable,
   useWaveform,
@@ -72,9 +73,9 @@ export function WaveformView() {
           type="button"
           onClick={toggleWaveform}
           aria-label="波形ビューを閉じる"
-          className="rounded px-2 py-0.5 text-sm text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
+          className="rounded p-1 text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700"
         >
-          ✕
+          <Icon name="close" size={18} />
         </button>
       </header>
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
 import { PRESETS, clonePreset } from '../lib/presets';
+import { Icon } from './Icon';
 
 export function PresetMenu() {
   const [open, setOpen] = useState(false);
@@ -37,10 +38,9 @@ export function PresetMenu() {
         aria-expanded={open}
         className="flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
       >
+        <Icon name="auto_awesome" size={18} />
         プリセット
-        <span aria-hidden="true" className="text-xs">
-          ▼
-        </span>
+        <Icon name="arrow_drop_down" size={18} />
       </button>
       {open && (
         <ul

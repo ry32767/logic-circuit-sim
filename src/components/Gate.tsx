@@ -8,6 +8,7 @@ import {
   portPosition,
   PORT_RADIUS,
 } from '../lib/circuit/geometry';
+import { ICON_PATHS } from '../lib/icons';
 
 interface GateProps {
   gate: GateModel;
@@ -129,17 +130,14 @@ export function Gate({
         </text>
       )}
 
-      {/* SR ラッチ禁止状態の警告アイコン */}
+      {/* SR ラッチ禁止状態の警告アイコン（Material warning） */}
       {forbidden && (
-        <text
-          x={gate.x + w - 8}
-          y={gate.y + 14}
-          className="lcs-warning"
-          textAnchor="middle"
+        <g
+          transform={`translate(${gate.x + w - 22.4} ${gate.y + 4.6}) scale(0.7)`}
           aria-label="禁止状態"
         >
-          ⚠
-        </text>
+          <path d={ICON_PATHS.warning} className="lcs-warning" />
+        </g>
       )}
 
       {/* 入力ポート */}
@@ -221,15 +219,20 @@ export function Gate({
           }}
         >
           <circle cx={gate.x + w} cy={gate.y} r={9} className="lcs-delete-bg" />
-          <text
-            x={gate.x + w}
-            y={gate.y + 1}
-            textAnchor="middle"
-            dominantBaseline="central"
+          <line
+            x1={gate.x + w - 3.2}
+            y1={gate.y - 3.2}
+            x2={gate.x + w + 3.2}
+            y2={gate.y + 3.2}
             className="lcs-delete-x"
-          >
-            ✕
-          </text>
+          />
+          <line
+            x1={gate.x + w - 3.2}
+            y1={gate.y + 3.2}
+            x2={gate.x + w + 3.2}
+            y2={gate.y - 3.2}
+            className="lcs-delete-x"
+          />
         </g>
       )}
     </g>
