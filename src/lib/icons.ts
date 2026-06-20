@@ -49,6 +49,10 @@ export const ICON_PATHS = {
     'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z',
   // 警告
   warning: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+  // ズームイン（＋）
+  add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+  // ズームアウト（−）
+  remove: 'M19 13H5v-2h14v2z',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

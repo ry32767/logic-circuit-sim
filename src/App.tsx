@@ -25,6 +25,7 @@ export default function App() {
     const shared = readCircuitFromUrl();
     if (shared) {
       useCircuitStore.getState().loadCircuit(shared);
+      useCircuitStore.getState().requestFit(); // 共有回路は全体が見えるようにフィット
       useCircuitStore.getState().dismissTutorial(); // 共有閲覧時はチュートリアルを出さない
     }
   }, []); // 初回マウント時のみ

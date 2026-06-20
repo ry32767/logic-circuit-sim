@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 export function PresetMenu() {
   const [open, setOpen] = useState(false);
   const loadCircuit = useCircuitStore((s) => s.loadCircuit);
-  const resetView = useCircuitStore((s) => s.resetView);
+  const requestFit = useCircuitStore((s) => s.requestFit);
   const ref = useRef<HTMLDivElement>(null);
 
   // メニュー外クリックで閉じる
@@ -25,7 +25,7 @@ export function PresetMenu() {
     const preset = PRESETS.find((p) => p.id === id);
     if (!preset) return;
     loadCircuit(clonePreset(preset));
-    resetView();
+    requestFit();
     setOpen(false);
   }
 

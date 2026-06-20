@@ -63,6 +63,7 @@ export interface CircuitStore {
   pending: PendingPort | null;
   theme: Theme;
   view: ViewTransform;
+  fitNonce: number; // 「全体表示」要求のたびに増える（Canvas が監視してフィットする）
   showTutorial: boolean;
   showWaveform: boolean;
 
@@ -87,6 +88,7 @@ export interface CircuitStore {
   // --- ビュー操作 ---
   setView: (view: ViewTransform) => void;
   resetView: () => void;
+  requestFit: () => void;
 
   // --- テーマ／チュートリアル ---
   toggleTheme: () => void;
@@ -108,6 +110,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   pending: null,
   theme: initialTheme(),
   view: { x: 0, y: 0, scale: 1 },
+  fitNonce: 0,
   showTutorial: initialTutorial(),
   showWaveform: false,
 
@@ -225,6 +228,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
 
   setView: (view) => set({ view }),
   resetView: () => set({ view: { x: 0, y: 0, scale: 1 } }),
+  requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
 
   toggleTheme: () =>
     set((s) => {

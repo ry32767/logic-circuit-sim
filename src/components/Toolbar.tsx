@@ -18,7 +18,7 @@ export function Toolbar() {
   const exportCircuit = useCircuitStore((s) => s.exportCircuit);
   const loadCircuit = useCircuitStore((s) => s.loadCircuit);
   const clear = useCircuitStore((s) => s.clear);
-  const resetView = useCircuitStore((s) => s.resetView);
+  const requestFit = useCircuitStore((s) => s.requestFit);
   const openTutorial = useCircuitStore((s) => s.openTutorial);
   const showWaveform = useCircuitStore((s) => s.showWaveform);
   const toggleWaveform = useCircuitStore((s) => s.toggleWaveform);
@@ -55,7 +55,7 @@ export function Toolbar() {
     try {
       const circuit = await importCircuitFromFile();
       loadCircuit(circuit);
-      resetView();
+      requestFit();
     } catch (err) {
       if (err instanceof Error && err.message !== 'ファイルが選択されませんでした') {
         setError(err.message);
@@ -107,7 +107,7 @@ export function Toolbar() {
           <Icon name="delete" />
           <span className="hidden sm:inline">クリア</span>
         </button>
-        <button type="button" className={btn} onClick={resetView} aria-label="表示位置をリセット">
+        <button type="button" className={btn} onClick={requestFit} aria-label="全体を表示">
           <Icon name="center_focus" />
           <span className="hidden sm:inline">表示</span>
         </button>
