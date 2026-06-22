@@ -88,9 +88,9 @@ logic-circuit-sim/
 │   │   ├── PresetMenu.tsx       # プリセット回路メニュー
 │   │   └── Tutorial.tsx         # チュートリアルモーダル
 │   ├── hooks/
-│   │   ├── useCircuit.ts        # 回路操作フック
-│   │   ├── useDrag.ts           # ドラッグ＆ドロップ（マウス＋タッチ）
-│   │   └── useConnect.ts        # 配線接続フック
+│   │   ├── useCircuit.ts        # 回路評価・CLK タイマーフック
+│   │   ├── useCanvasGestures.ts # キャンバスのポインタ操作（移動・配線・選択・削除）
+│   │   └── usePaletteDrag.ts    # サイドバーからのドラッグ配置フック
 │   ├── lib/
 │   │   ├── circuit/
 │   │   │   ├── evaluate.ts      # 回路評価ロジック（DFS で信号を伝播）

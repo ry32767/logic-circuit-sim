@@ -184,19 +184,19 @@ export function Canvas() {
         </button>
       </div>
 
-      {/* ゴミ箱ゾーン：ゲートをドラッグ中だけ表示。ここで離すと削除する */}
+      {/* ゴミ箱ゾーン：ゲートをドラッグ中だけ画面上部中央に表示。ここで離すと削除する */}
       {draggingIds.length > 0 && (
         <div
           ref={trashRef}
           className={
-            'lcs-trash absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1 rounded-2xl border-2 border-dashed px-6 py-3 text-sm font-semibold transition-colors' +
+            'lcs-trash absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border-2 border-dashed px-5 py-2.5 text-sm font-semibold shadow-lg transition-colors' +
             (overTrash
               ? ' scale-110 border-red-500 bg-red-500 text-white'
               : ' border-red-400 bg-white/90 text-red-600 dark:bg-slate-800/90 dark:text-red-300')
           }
           aria-hidden="true"
         >
-          <Icon name="delete" size={24} />
+          <Icon name="delete" size={22} />
           <span>ここで離して削除</span>
         </div>
       )}

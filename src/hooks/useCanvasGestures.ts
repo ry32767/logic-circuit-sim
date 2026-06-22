@@ -14,7 +14,12 @@ import {
   portAtPoint,
   portPosition,
 } from '../lib/circuit/geometry';
-import type { CanvasPoint } from './useDrag';
+
+// キャンバス（SVG 内の論理）座標
+export interface CanvasPoint {
+  x: number;
+  y: number;
+}
 
 const MOVE_THRESHOLD = 5; // タップとドラッグを区別する移動量（px）
 const LONG_PRESS_MS = 500; // 長押しで情報パネルを開くまでの時間
