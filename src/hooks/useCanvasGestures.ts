@@ -13,6 +13,7 @@ import {
   gateWidth,
   portAtPoint,
   portPosition,
+  type PortHit,
 } from '../lib/circuit/geometry';
 
 // キャンバス（SVG 内の論理）座標
@@ -25,6 +26,7 @@ const MOVE_THRESHOLD = 5; // タップとドラッグを区別する移動量（
 const LONG_PRESS_MS = 500; // 長押しで情報パネルを開くまでの時間
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
+const SNAP_RADIUS = 30; // 自動接続：この距離内の有効ポートへスナップする（キャンバス座標）
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, v));
@@ -106,6 +108,7 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
   // 描画に使う一時状態
   const [draggingIds, setDraggingIds] = useState<string[]>([]);
   const [connect, setConnect] = useState<ConnectPreview | null>(null);
+  const [snap, setSnap] = useState<PortHit | null>(null); // 自動接続のスナップ先
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const [overTrash, setOverTrash] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -154,6 +157,7 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
     }
     setDraggingIds([]);
     setConnect(null);
+    setSnap(null);
     setMarquee(null);
     setOverTrash(false);
     gesture.current = { kind: 'none' };
@@ -299,6 +303,7 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
     if (st.pending) {
       st.cancelConnection();
       setConnect(null);
+      setSnap(null);
     }
     moved.current = false;
     if (selectMode) {
@@ -370,19 +375,35 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
         moved.current = true;
       }
       if (!moved.current) return;
+      const st = useCircuitStore.getState();
       // 切断ドラッグ：移動を始めた時点で配線を外し、付け替え元から引き直す
       if (g.detach && !g.started) {
-        const st = useCircuitStore.getState();
         st.removeWire(g.detach.wireId);
         st.startConnection(g.detach.source);
         g.started = true;
       }
-      const to = toCanvas(e.clientX, e.clientY);
+      const finger = toCanvas(e.clientX, e.clientY);
+      // 近くの有効ポート（逆向き・別ゲート）へ自動でスナップする
+      const pending = useCircuitStore.getState().pending;
+      const snapHit = pending
+        ? portAtPoint(
+            st.gates,
+            finger,
+            SNAP_RADIUS,
+            (h) => h.type !== pending.type && h.gateId !== pending.gateId,
+          )
+        : null;
+      setSnap(snapHit);
+      // スナップ先があれば線の終点をそのポートに吸着させる
+      let to = finger;
+      if (snapHit) {
+        const tg = st.gates.find((gg) => gg.id === snapHit.gateId);
+        if (tg) to = portPosition(tg, snapHit.type, snapHit.portIndex);
+      }
       setConnect((prev) => {
         if (prev) return { ...prev, to };
         // 切断直後で from 未設定なら付け替え元ポートから引く
-        const st = useCircuitStore.getState();
-        const src = st.pending;
+        const src = useCircuitStore.getState().pending;
         const srcGate = st.gates.find((gg) => gg.id === src?.gateId);
         if (!src || !srcGate) return prev;
         return { from: portPosition(srcGate, src.type, src.portIndex), to };
@@ -425,21 +446,24 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
       gesture.current = { kind: 'none' };
     } else if (g.kind === 'connect' && g.pointerId === e.pointerId) {
       if (moved.current) {
-        // ドラッグ接続：離した位置のポートへつなぐ。なければ切断のまま確定
+        // ドラッグ接続：離した位置の近くにある有効ポートへ自動接続する
         const p = toCanvas(e.clientX, e.clientY);
-        const hit = portAtPoint(st.gates, p);
         const pending = st.pending;
-        if (
-          hit &&
-          pending &&
-          hit.type !== pending.type &&
-          hit.gateId !== pending.gateId
-        ) {
+        const hit = pending
+          ? portAtPoint(
+              st.gates,
+              p,
+              SNAP_RADIUS,
+              (h) => h.type !== pending.type && h.gateId !== pending.gateId,
+            )
+          : null;
+        if (hit) {
           st.completeConnection(hit);
         } else {
           st.cancelConnection();
         }
         setConnect(null);
+        setSnap(null);
         gesture.current = { kind: 'none' };
       }
       // 動いていなければタップ接続の起点として pending を保持する
@@ -566,6 +590,7 @@ export function useCanvasGestures(svgRef: RefObject<SVGSVGElement>) {
     trashRef,
     draggingIds,
     connect,
+    snap,
     marquee,
     overTrash,
     selectMode,

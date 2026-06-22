@@ -165,11 +165,12 @@ body {
 }
 
 /* ===== ポート ===== */
+/* 見た目のポートは描画専用。タップは下の透明な広い当たり判定が受ける */
 .lcs-port {
   fill: var(--port-fill);
   stroke: var(--gate-stroke);
   stroke-width: 1.5;
-  cursor: crosshair;
+  pointer-events: none;
   transition: fill 0.15s ease;
 }
 .lcs-port.high {
@@ -178,6 +179,34 @@ body {
 .lcs-port.candidate {
   stroke: var(--accent);
   stroke-width: 2.5;
+}
+/* 押しやすくするための広い透明タップ領域 */
+.lcs-port-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: crosshair;
+}
+/* 自動接続のスナップ先を強調するリング */
+.lcs-port-snap {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  pointer-events: none;
+  filter: drop-shadow(0 0 4px var(--accent));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lcs-port-snap {
+    animation: lcs-snap-pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes lcs-snap-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.45;
+    }
+  }
 }
 
 /* ===== 配線 ===== */

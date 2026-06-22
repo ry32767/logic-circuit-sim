@@ -6,8 +6,10 @@ export const GATE_WIDTH = 76;
 export const GATE_HEIGHT = 56;
 // メモリ素子（SR ラッチ / D-FF）は入出力が 2 つずつなので縦長にする
 export const MEMORY_HEIGHT = 76;
-// ポートの当たり判定半径
-export const PORT_RADIUS = 7;
+// ポートの表示半径（タップしやすいよう少し大きめ）
+export const PORT_RADIUS = 9;
+// ポートのタップ当たり判定半径（見た目より広くして押しやすくする）
+export const PORT_HIT_RADIUS = 15;
 
 // ゲートの高さ（メモリ素子だけ高い）
 export function gateHeight(type: GateType): number {
@@ -67,11 +69,13 @@ export interface PortHit {
   type: PortType;
 }
 
-// 指定した点に最も近いポートを探す（タッチでも掴みやすいよう半径は広め）
+// 指定した点に最も近いポートを探す（タッチでも掴みやすいよう半径は広め）。
+// filter を渡すと条件に合うポートだけを対象にする（自動接続の候補探索に使う）。
 export function portAtPoint(
   gates: Gate[],
   point: { x: number; y: number },
-  radius = PORT_RADIUS * 2.4,
+  radius = PORT_RADIUS * 3,
+  filter?: (hit: PortHit) => boolean,
 ): PortHit | null {
   let best: PortHit | null = null;
   let bestDist = radius;
@@ -79,11 +83,13 @@ export function portAtPoint(
     const meta = GATE_META[gate.type];
     const check = (type: PortType, count: number) => {
       for (let i = 0; i < count; i++) {
+        const hit: PortHit = { gateId: gate.id, portIndex: i, type };
+        if (filter && !filter(hit)) continue;
         const pos = portPosition(gate, type, i);
         const d = Math.hypot(pos.x - point.x, pos.y - point.y);
         if (d <= bestDist) {
           bestDist = d;
-          best = { gateId: gate.id, portIndex: i, type };
+          best = hit;
         }
       }
     };

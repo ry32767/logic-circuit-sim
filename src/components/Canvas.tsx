@@ -5,7 +5,7 @@ import { useCanvasGestures } from '../hooks/useCanvasGestures';
 import { Gate } from './Gate';
 import { Wire } from './Wire';
 import { Icon } from './Icon';
-import { portPosition } from '../lib/circuit/geometry';
+import { portPosition, PORT_RADIUS } from '../lib/circuit/geometry';
 import { isSrForbidden } from '../lib/circuit/memory';
 
 export function Canvas() {
@@ -32,6 +32,7 @@ export function Canvas() {
     trashRef,
     draggingIds,
     connect,
+    snap,
     marquee,
     overTrash,
     selectMode,
@@ -104,6 +105,22 @@ export function Canvas() {
               y2={connect.to.y}
             />
           )}
+
+          {/* 自動接続のスナップ先を強調するリング */}
+          {snap &&
+            (() => {
+              const sg = gateMap.get(snap.gateId);
+              if (!sg) return null;
+              const pos = portPosition(sg, snap.type, snap.portIndex);
+              return (
+                <circle
+                  className="lcs-port-snap"
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={PORT_RADIUS + 5}
+                />
+              );
+            })()}
 
           {/* 矩形選択 */}
           {marquee && (

@@ -7,6 +7,7 @@ import {
   gateWidth,
   portPosition,
   PORT_RADIUS,
+  PORT_HIT_RADIUS,
 } from '../lib/circuit/geometry';
 import { ICON_PATHS } from '../lib/icons';
 
@@ -155,6 +156,21 @@ export function Gate({
               {meta.inputLabels[i]}
             </text>
           )}
+          {/* 広いタップ判定（透明） */}
+          <circle
+            cx={pos.x}
+            cy={pos.y}
+            r={PORT_HIT_RADIUS}
+            className="lcs-port-hit"
+            onPointerDown={(e) =>
+              onPortPointerDown(e, {
+                gateId: gate.id,
+                portIndex: i,
+                type: 'input',
+              })
+            }
+          />
+          {/* 表示用のポート */}
           <circle
             cx={pos.x}
             cy={pos.y}
@@ -163,13 +179,6 @@ export function Gate({
               'lcs-port' +
               (value ? ' high' : '') +
               (isCandidate(pending, gate.id, 'input') ? ' candidate' : '')
-            }
-            onPointerDown={(e) =>
-              onPortPointerDown(e, {
-                gateId: gate.id,
-                portIndex: i,
-                type: 'input',
-              })
             }
           />
         </g>
@@ -189,6 +198,21 @@ export function Gate({
               {meta.outputLabels[i]}
             </text>
           )}
+          {/* 広いタップ判定（透明） */}
+          <circle
+            cx={pos.x}
+            cy={pos.y}
+            r={PORT_HIT_RADIUS}
+            className="lcs-port-hit"
+            onPointerDown={(e) =>
+              onPortPointerDown(e, {
+                gateId: gate.id,
+                portIndex: i,
+                type: 'output',
+              })
+            }
+          />
+          {/* 表示用のポート */}
           <circle
             cx={pos.x}
             cy={pos.y}
@@ -197,13 +221,6 @@ export function Gate({
               'lcs-port' +
               (value ? ' high' : '') +
               (isCandidate(pending, gate.id, 'output') ? ' candidate' : '')
-            }
-            onPointerDown={(e) =>
-              onPortPointerDown(e, {
-                gateId: gate.id,
-                portIndex: i,
-                type: 'output',
-              })
             }
           />
         </g>
