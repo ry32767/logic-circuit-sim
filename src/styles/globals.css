@@ -38,6 +38,20 @@ body,
   height: 100%;
 }
 
+/* ページ自体のスクロール・オーバースクロール（ゴムバンド）を抑止し、
+   キャンバス外までドラッグしても画面ごと動いたり白い背景が見えたりしないようにする */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* iOS Safari のゴムバンドを確実に止めるため body を固定する */
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  /* 万一はみ出してもテーマ色が見えるように背景色を敷く */
+  background: var(--canvas-bg);
+}
+
 body {
   margin: 0;
   font-family:
