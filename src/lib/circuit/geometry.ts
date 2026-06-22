@@ -60,6 +60,39 @@ export function portPosition(
   return { x: px, y: py };
 }
 
+// 当たり判定したポート（ドラッグ接続のドロップ先判定に使う）
+export interface PortHit {
+  gateId: string;
+  portIndex: number;
+  type: PortType;
+}
+
+// 指定した点に最も近いポートを探す（タッチでも掴みやすいよう半径は広め）
+export function portAtPoint(
+  gates: Gate[],
+  point: { x: number; y: number },
+  radius = PORT_RADIUS * 2.4,
+): PortHit | null {
+  let best: PortHit | null = null;
+  let bestDist = radius;
+  for (const gate of gates) {
+    const meta = GATE_META[gate.type];
+    const check = (type: PortType, count: number) => {
+      for (let i = 0; i < count; i++) {
+        const pos = portPosition(gate, type, i);
+        const d = Math.hypot(pos.x - point.x, pos.y - point.y);
+        if (d <= bestDist) {
+          bestDist = d;
+          best = { gateId: gate.id, portIndex: i, type };
+        }
+      }
+    };
+    check('input', meta.inputs);
+    check('output', meta.outputs);
+  }
+  return best;
+}
+
 // ゲートが持つ全ポートを列挙する
 export function gatePorts(gate: Gate): Port[] {
   const meta = GATE_META[gate.type];

@@ -1,4 +1,4 @@
-import type { DragEvent as ReactDragEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
 import {
   CATEGORY_LABELS,
@@ -7,11 +7,6 @@ import {
   type GateCategory,
 } from '../lib/circuit/gates';
 import type { GateType } from '../types/circuit';
-
-const GATE_DND_TYPE = 'application/gate-type';
-
-// クリック追加時に重ならないよう少しずつずらす
-let addOffset = 0;
 
 // GATE_ORDER をカテゴリごとにまとめる
 function groupByCategory(): { category: GateCategory; types: GateType[] }[] {
@@ -29,21 +24,14 @@ function groupByCategory(): { category: GateCategory; types: GateType[] }[] {
 }
 
 export function Sidebar() {
-  const addGate = useCircuitStore((s) => s.addGate);
-  const view = useCircuitStore((s) => s.view);
+  const startPaletteDrag = useCircuitStore((s) => s.startPaletteDrag);
   const groups = groupByCategory();
 
-  // クリックでビューポート中央付近に追加する（タッチ端末向け）
-  function handleAdd(type: GateType) {
-    const cx = (window.innerWidth / 2 - view.x) / view.scale;
-    const cy = (window.innerHeight / 2 - view.y) / view.scale;
-    addOffset = (addOffset + 24) % 120;
-    addGate(type, cx - 38 + addOffset, cy - 28 + addOffset);
-  }
-
-  function handleDragStart(e: ReactDragEvent, type: GateType) {
-    e.dataTransfer.setData(GATE_DND_TYPE, type);
-    e.dataTransfer.effectAllowed = 'copy';
+  // ボタンを押した時点でドラッグ配置を開始する（マウス・タッチ共通）。
+  // 指を動かさず離せばタップ＝中央に追加、動かしてキャンバスで離せばその位置に配置。
+  function handlePointerDown(e: ReactPointerEvent, type: GateType) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    startPaletteDrag(type, e.clientX, e.clientY);
   }
 
   return (
@@ -65,12 +53,10 @@ export function Sidebar() {
               <button
                 key={type}
                 type="button"
-                draggable
-                onDragStart={(e) => handleDragStart(e, type)}
-                onClick={() => handleAdd(type)}
-                title={`${meta.name}を追加（ドラッグでも配置できます）`}
+                onPointerDown={(e) => handlePointerDown(e, type)}
+                title={`${meta.name}を追加（キャンバスへドラッグして配置）`}
                 aria-label={`${meta.name}を追加`}
-                className="flex shrink-0 cursor-grab flex-col items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-center shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-500 dark:hover:bg-slate-700 md:w-full md:flex-row md:justify-start md:gap-2"
+                className="flex shrink-0 cursor-grab touch-pan-x select-none flex-col items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-center shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 active:cursor-grabbing dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-500 dark:hover:bg-slate-700 md:w-full md:touch-pan-y md:flex-row md:justify-start md:gap-2"
               >
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
                   {meta.label}

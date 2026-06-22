@@ -1,343 +1,42 @@
-import {
-  useEffect,
-  useRef,
-  type PointerEvent as ReactPointerEvent,
-  type WheelEvent as ReactWheelEvent,
-  type DragEvent as ReactDragEvent,
-} from 'react';
+import { useEffect, useRef } from 'react';
 import { useCircuitStore } from '../stores/circuitStore';
 import { useCircuit } from '../hooks/useCircuit';
-import { useDrag } from '../hooks/useDrag';
-import { useConnect } from '../hooks/useConnect';
+import { useCanvasGestures } from '../hooks/useCanvasGestures';
 import { Gate } from './Gate';
 import { Wire } from './Wire';
 import { Icon } from './Icon';
-import {
-  GATE_HEIGHT,
-  GATE_WIDTH,
-  gateHeight,
-  gateWidth,
-  portPosition,
-} from '../lib/circuit/geometry';
+import { portPosition } from '../lib/circuit/geometry';
 import { isSrForbidden } from '../lib/circuit/memory';
-import { GATE_META } from '../lib/circuit/gates';
-import type { GateType } from '../types/circuit';
-
-const MOVE_THRESHOLD = 5; // タップとドラッグを区別する移動量（px）
-const LONG_PRESS_MS = 500; // 長押しで情報パネルを開くまでの時間
-const MIN_SCALE = 0.3;
-const MAX_SCALE = 3;
-const GATE_DND_TYPE = 'application/gate-type';
-
-// 現在のジェスチャ種別。pointerId でどの指の操作かを区別する。
-type Gesture =
-  | { kind: 'none' }
-  | {
-      kind: 'gate';
-      pointerId: number;
-      gateId: string;
-      isInput: boolean;
-      startX: number;
-      startY: number;
-    }
-  | {
-      kind: 'pan';
-      pointerId: number;
-      startX: number;
-      startY: number;
-      viewX: number;
-      viewY: number;
-    };
-
-function clamp(v: number, lo: number, hi: number) {
-  return Math.min(hi, Math.max(lo, v));
-}
 
 export function Canvas() {
   const svgRef = useRef<SVGSVGElement>(null);
-  const gesture = useRef<Gesture>({ kind: 'none' });
-  const moved = useRef(false); // ゲート/パンが実際に動いたか（タップ判定用）
-  // 長押し検出用のタイマーと、長押しが発火したかのフラグ
-  const longPressTimer = useRef<number | null>(null);
-  const longFired = useRef(false);
-  // 押下中のポインタ（ピンチ判定に使う）
-  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const pinch = useRef<{
-    startDist: number;
-    startScale: number;
-    anchorX: number;
-    anchorY: number;
-  } | null>(null);
 
   const gates = useCircuitStore((s) => s.gates);
   const wires = useCircuitStore((s) => s.wires);
   const view = useCircuitStore((s) => s.view);
-  const selectedGateId = useCircuitStore((s) => s.selectedGateId);
+  const selectedIds = useCircuitStore((s) => s.selectedIds);
+  const pending = useCircuitStore((s) => s.pending);
   const fitNonce = useCircuitStore((s) => s.fitNonce);
-
-  const setView = useCircuitStore((s) => s.setView);
-  const selectGate = useCircuitStore((s) => s.selectGate);
   const removeGate = useCircuitStore((s) => s.removeGate);
   const removeWire = useCircuitStore((s) => s.removeWire);
-  const toggleInput = useCircuitStore((s) => s.toggleInput);
-  const addGate = useCircuitStore((s) => s.addGate);
-  const setInfoSheet = useCircuitStore((s) => s.setInfoSheet);
 
   const result = useCircuit();
-  const { startGateDrag, dragTo, endDrag } = useDrag();
-  const { pending, preview, handlePortClick, updatePreview, cancel } =
-    useConnect();
 
-  // 長押しタイマーを解除する
-  function cancelLongPress() {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }
-
-  // 画面座標をキャンバス（論理）座標へ変換する
-  function toCanvas(cx: number, cy: number) {
-    const rect = svgRef.current?.getBoundingClientRect();
-    const v = useCircuitStore.getState().view;
-    const left = rect?.left ?? 0;
-    const top = rect?.top ?? 0;
-    return { x: (cx - left - v.x) / v.scale, y: (cy - top - v.y) / v.scale };
-  }
-
-  // ピンチ開始：2 本目のポインタが乗ったとき（進行中のドラッグは中断）
-  function beginPinch() {
-    const pts = [...pointers.current.values()];
-    if (pts.length < 2) return;
-    const [a, b] = pts;
-    const anchor = toCanvas((a.x + b.x) / 2, (a.y + b.y) / 2);
-    pinch.current = {
-      startDist: Math.hypot(a.x - b.x, a.y - b.y),
-      startScale: useCircuitStore.getState().view.scale,
-      anchorX: anchor.x,
-      anchorY: anchor.y,
-    };
-    endDrag();
-    cancelLongPress();
-    gesture.current = { kind: 'none' };
-  }
-
-  // ピンチ中：距離の比でスケールし、中点をアンカーに固定する
-  function updatePinch() {
-    const p = pinch.current;
-    const pts = [...pointers.current.values()];
-    if (!p || pts.length < 2) return;
-    const [a, b] = pts;
-    const dist = Math.hypot(a.x - b.x, a.y - b.y);
-    const midX = (a.x + b.x) / 2;
-    const midY = (a.y + b.y) / 2;
-    const scale = clamp((p.startScale * dist) / p.startDist, MIN_SCALE, MAX_SCALE);
-    const rect = svgRef.current?.getBoundingClientRect();
-    const left = rect?.left ?? 0;
-    const top = rect?.top ?? 0;
-    setView({
-      x: midX - left - p.anchorX * scale,
-      y: midY - top - p.anchorY * scale,
-      scale,
-    });
-  }
-
-  // --- ゲート本体の押下：1 本指ならゲート移動を開始 ---
-  function onBodyPointerDown(
-    e: ReactPointerEvent,
-    gate: { id: string; type: GateType },
-  ) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    e.stopPropagation();
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size >= 2) {
-      beginPinch();
-      return;
-    }
-    const g = gates.find((gg) => gg.id === gate.id);
-    if (!g) return;
-    selectGate(gate.id);
-    startGateDrag(g, toCanvas(e.clientX, e.clientY));
-    moved.current = false;
-    longFired.current = false;
-    gesture.current = {
-      kind: 'gate',
-      pointerId: e.pointerId,
-      gateId: gate.id,
-      isInput: gate.type === 'INPUT',
-      startX: e.clientX,
-      startY: e.clientY,
-    };
-    // 長押しで情報パネルを開く（動かさずに押し続けた場合のみ）
-    cancelLongPress();
-    longPressTimer.current = window.setTimeout(() => {
-      if (!moved.current) {
-        longFired.current = true;
-        setInfoSheet(true);
-      }
-    }, LONG_PRESS_MS);
-  }
-
-  // --- ポートの押下：配線接続 ---
-  function onPortPointerDown(
-    e: ReactPointerEvent,
-    port: { gateId: string; portIndex: number; type: 'input' | 'output' },
-  ) {
-    e.stopPropagation();
-    handlePortClick(port);
-    updatePreview(toCanvas(e.clientX, e.clientY));
-  }
-
-  // --- 背景の押下：1 本指なら視点パンを開始（選択・接続を解除） ---
-  function onBackgroundPointerDown(e: ReactPointerEvent) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.current.size >= 2) {
-      beginPinch();
-      return;
-    }
-    selectGate(null);
-    if (useCircuitStore.getState().pending) cancel();
-    const v = useCircuitStore.getState().view;
-    moved.current = false;
-    gesture.current = {
-      kind: 'pan',
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      viewX: v.x,
-      viewY: v.y,
-    };
-  }
-
-  // --- ポインタ移動（window で受ける：要素外へ出ても追従する）---
-  function handleMove(e: PointerEvent) {
-    if (pointers.current.has(e.pointerId)) {
-      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
-    if (pinch.current && pointers.current.size >= 2) {
-      updatePinch();
-      return;
-    }
-
-    const g = gesture.current;
-    if (g.kind === 'gate' && g.pointerId === e.pointerId) {
-      const dx = e.clientX - g.startX;
-      const dy = e.clientY - g.startY;
-      // 少し動いたらドラッグ開始（それまでは長押し判定を維持）
-      if (
-        moved.current ||
-        Math.abs(dx) > MOVE_THRESHOLD ||
-        Math.abs(dy) > MOVE_THRESHOLD
-      ) {
-        moved.current = true;
-        cancelLongPress();
-        dragTo(toCanvas(e.clientX, e.clientY));
-      }
-    } else if (g.kind === 'pan' && g.pointerId === e.pointerId) {
-      const v = useCircuitStore.getState().view;
-      const dx = e.clientX - g.startX;
-      const dy = e.clientY - g.startY;
-      if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-        moved.current = true;
-      }
-      setView({ x: g.viewX + dx, y: g.viewY + dy, scale: v.scale });
-    }
-
-    // 配線接続中はプレビュー線の終点を更新する
-    if (useCircuitStore.getState().pending) {
-      updatePreview(toCanvas(e.clientX, e.clientY));
-    }
-  }
-
-  // --- ポインタを離す ---
-  function handleUp(e: PointerEvent) {
-    pointers.current.delete(e.pointerId);
-    if (pointers.current.size < 2) pinch.current = null;
-
-    const g = gesture.current;
-    if (g.kind === 'gate' && g.pointerId === e.pointerId) {
-      cancelLongPress();
-      // ほとんど動かさず・長押しもしていなければタップ扱い：INPUT は値をトグル
-      if (!moved.current && !longFired.current && g.isInput) {
-        toggleInput(g.gateId);
-      }
-      endDrag();
-      gesture.current = { kind: 'none' };
-    } else if (g.kind === 'pan' && g.pointerId === e.pointerId) {
-      gesture.current = { kind: 'none' };
-    }
-  }
-
-  // window にポインタ移動/解放のリスナーを張る（最新クロージャを ref 経由で呼ぶ）
-  const handlersRef = useRef({ move: handleMove, up: handleUp });
-  handlersRef.current = { move: handleMove, up: handleUp };
-  useEffect(() => {
-    const move = (e: PointerEvent) => handlersRef.current.move(e);
-    const up = (e: PointerEvent) => handlersRef.current.up(e);
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
-      if (longPressTimer.current !== null) {
-        window.clearTimeout(longPressTimer.current);
-      }
-    };
-  }, []);
-
-  // ビューポート中央を基準にズームする
-  function zoomBy(factor: number) {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const v = useCircuitStore.getState().view;
-    const scale = clamp(v.scale * factor, MIN_SCALE, MAX_SCALE);
-    const cx = rect.width / 2;
-    const cy = rect.height / 2;
-    const canX = (cx - v.x) / v.scale;
-    const canY = (cy - v.y) / v.scale;
-    setView({ x: cx - canX * scale, y: cy - canY * scale, scale });
-  }
-
-  // 全ゲートが収まるようにビューを合わせる
-  function fitAll() {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const gs = useCircuitStore.getState().gates;
-    if (gs.length === 0) {
-      setView({ x: 0, y: 0, scale: 1 });
-      return;
-    }
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const g of gs) {
-      const w = gateWidth();
-      const h = gateHeight(g.type);
-      minX = Math.min(minX, g.x);
-      minY = Math.min(minY, g.y);
-      maxX = Math.max(maxX, g.x + w);
-      maxY = Math.max(maxY, g.y + h);
-    }
-    const pad = 56;
-    const bw = maxX - minX + pad * 2;
-    const bh = maxY - minY + pad * 2;
-    const scale = clamp(
-      Math.min(rect.width / bw, rect.height / bh),
-      MIN_SCALE,
-      MAX_SCALE,
-    );
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    setView({
-      x: rect.width / 2 - centerX * scale,
-      y: rect.height / 2 - centerY * scale,
-      scale,
-    });
-  }
+  const {
+    onBodyPointerDown,
+    onPortPointerDown,
+    onBackgroundPointerDown,
+    onWheel,
+    zoomBy,
+    fitAll,
+    trashRef,
+    draggingIds,
+    connect,
+    marquee,
+    overTrash,
+    selectMode,
+    toggleSelectMode,
+  } = useCanvasGestures(svgRef);
 
   // 「全体表示」要求（fitNonce）に反応してフィットする。初回(0)は無視。
   useEffect(() => {
@@ -347,41 +46,10 @@ export function Canvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitNonce]);
 
-  // --- ホイールズーム（カーソル位置を固定） ---
-  function onWheel(e: ReactWheelEvent) {
-    const v = useCircuitStore.getState().view;
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    const scale = clamp(v.scale * factor, MIN_SCALE, MAX_SCALE);
-    const rect = svgRef.current?.getBoundingClientRect();
-    const left = rect?.left ?? 0;
-    const top = rect?.top ?? 0;
-    const cx = (e.clientX - left - v.x) / v.scale;
-    const cy = (e.clientY - top - v.y) / v.scale;
-    setView({ x: e.clientX - left - cx * scale, y: e.clientY - top - cy * scale, scale });
-  }
-
-  // --- サイドバーからのドロップで新規ゲートを配置 ---
-  function onDragOver(e: ReactDragEvent) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }
-  function onDrop(e: ReactDragEvent) {
-    e.preventDefault();
-    const type = e.dataTransfer.getData(GATE_DND_TYPE);
-    if (!(type in GATE_META)) return;
-    const p = toCanvas(e.clientX, e.clientY);
-    addGate(type as GateType, p.x - GATE_WIDTH / 2, p.y - GATE_HEIGHT / 2);
-  }
-
   // ゲート ID から座標を引くためのマップ
   const gateMap = new Map(gates.map((g) => [g.id, g]));
-
-  // 接続中プレビュー線の始点
-  let previewStart: { x: number; y: number } | null = null;
-  if (pending) {
-    const g = gateMap.get(pending.gateId);
-    if (g) previewStart = portPosition(g, pending.type, pending.portIndex);
-  }
+  const selectedSet = new Set(selectedIds);
+  const draggingSet = new Set(draggingIds);
 
   // ズーム/フィットのオーバーレイボタン共通スタイル
   const zoomBtn =
@@ -394,8 +62,6 @@ export function Canvas() {
         className="lcs-canvas"
         onPointerDown={onBackgroundPointerDown}
         onWheel={onWheel}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
         style={{ touchAction: 'none' }}
         role="application"
         aria-label="回路キャンバス"
@@ -428,14 +94,25 @@ export function Canvas() {
             );
           })}
 
-          {/* 接続中のプレビュー線 */}
-          {previewStart && preview && (
+          {/* 接続中のプレビュー線（ドラッグ配線のラバーバンド） */}
+          {connect && (
             <line
               className="lcs-preview"
-              x1={previewStart.x}
-              y1={previewStart.y}
-              x2={preview.x}
-              y2={preview.y}
+              x1={connect.from.x}
+              y1={connect.from.y}
+              x2={connect.to.x}
+              y2={connect.to.y}
+            />
+          )}
+
+          {/* 矩形選択 */}
+          {marquee && (
+            <rect
+              className="lcs-marquee"
+              x={marquee.x}
+              y={marquee.y}
+              width={marquee.w}
+              height={marquee.h}
             />
           )}
 
@@ -446,7 +123,8 @@ export function Canvas() {
               gate={g}
               outputs={result.outputs[g.id] ?? []}
               inputs={result.inputs[g.id] ?? []}
-              selected={selectedGateId === g.id}
+              selected={selectedSet.has(g.id)}
+              dragging={draggingSet.has(g.id)}
               forbidden={g.type === 'SR_LATCH' && isSrForbidden(result, g.id)}
               pending={pending}
               onBodyPointerDown={onBodyPointerDown}
@@ -457,8 +135,29 @@ export function Canvas() {
         </g>
       </svg>
 
-      {/* ズーム/フィットの操作（ジェスチャと分離した明示的なコントロール） */}
+      {/* ズーム/フィット・選択モードの操作（ジェスチャと分離した明示的なコントロール） */}
       <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
+        <button
+          type="button"
+          className={
+            zoomBtn +
+            (selectMode
+              ? ' !border-emerald-500 !bg-emerald-500 !text-white'
+              : '')
+          }
+          onClick={toggleSelectMode}
+          aria-pressed={selectMode}
+          aria-label={
+            selectMode ? '選択モードを終了' : '範囲選択モードに切替'
+          }
+          title={
+            selectMode
+              ? '選択モード：ドラッグで範囲選択。もう一度押すと解除'
+              : '範囲選択モード（複数ゲートをまとめて移動）'
+          }
+        >
+          <Icon name="select_all" size={20} />
+        </button>
         <button
           type="button"
           className={zoomBtn}
@@ -484,6 +183,23 @@ export function Canvas() {
           <Icon name="center_focus" size={20} />
         </button>
       </div>
+
+      {/* ゴミ箱ゾーン：ゲートをドラッグ中だけ表示。ここで離すと削除する */}
+      {draggingIds.length > 0 && (
+        <div
+          ref={trashRef}
+          className={
+            'lcs-trash absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-1 rounded-2xl border-2 border-dashed px-6 py-3 text-sm font-semibold transition-colors' +
+            (overTrash
+              ? ' scale-110 border-red-500 bg-red-500 text-white'
+              : ' border-red-400 bg-white/90 text-red-600 dark:bg-slate-800/90 dark:text-red-300')
+          }
+          aria-hidden="true"
+        >
+          <Icon name="delete" size={24} />
+          <span>ここで離して削除</span>
+        </div>
+      )}
     </>
   );
 }

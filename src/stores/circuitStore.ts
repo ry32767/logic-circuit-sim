@@ -54,13 +54,22 @@ function initialTutorial(): boolean {
   return window.localStorage.getItem(TUTORIAL_KEY) !== '1';
 }
 
+// パレット（サイドバー）からゲートをドラッグ配置している最中の状態
+export interface PaletteDrag {
+  type: GateType;
+  x: number; // ポインタの画面 X 座標
+  y: number; // ポインタの画面 Y 座標
+}
+
 export interface CircuitStore {
   // --- 状態 ---
   gates: Gate[];
   wires: Wire[];
   memory: MemoryState;
-  selectedGateId: string | null;
+  selectedGateId: string | null; // 主選択（情報パネル表示用）＝selectedIds の末尾
+  selectedIds: string[]; // 複数選択（同時移動・一括削除用）
   pending: PendingPort | null;
+  paletteDrag: PaletteDrag | null; // パレットからのドラッグ配置中の状態
   theme: Theme;
   view: ViewTransform;
   fitNonce: number; // 「全体表示」要求のたびに増える（Canvas が監視してフィットする）
@@ -71,10 +80,14 @@ export interface CircuitStore {
   // --- ゲート操作 ---
   addGate: (type: GateType, x: number, y: number) => string;
   moveGate: (id: string, x: number, y: number) => void;
+  moveGates: (positions: { id: string; x: number; y: number }[]) => void;
   removeGate: (id: string) => void;
+  removeGates: (ids: string[]) => void;
   toggleInput: (id: string) => void;
   setClockInterval: (id: string, interval: number) => void;
   selectGate: (id: string | null) => void;
+  toggleSelect: (id: string) => void;
+  setSelection: (ids: string[]) => void;
 
   // --- 配線操作 ---
   startConnection: (port: PendingPort) => void;
@@ -85,6 +98,11 @@ export interface CircuitStore {
   // --- メモリ／クロック ---
   recompute: () => void;
   toggleClock: (id: string) => void;
+
+  // --- パレットドラッグ（サイドバーからの配置） ---
+  startPaletteDrag: (type: GateType, x: number, y: number) => void;
+  movePaletteDrag: (x: number, y: number) => void;
+  endPaletteDrag: () => void;
 
   // --- ビュー操作 ---
   setView: (view: ViewTransform) => void;
@@ -109,7 +127,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
   wires: [],
   memory: {},
   selectedGateId: null,
+  selectedIds: [],
   pending: null,
+  paletteDrag: null,
   theme: initialTheme(),
   view: { x: 0, y: 0, scale: 1 },
   fitNonce: 0,
@@ -122,7 +142,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     const gate: Gate = { id, type, x, y };
     if (type === 'INPUT') gate.inputValue = false;
     if (type === 'CLK') gate.clockInterval = DEFAULT_CLOCK_INTERVAL;
-    set((s) => ({ gates: [...s.gates, gate], selectedGateId: id }));
+    set((s) => ({
+      gates: [...s.gates, gate],
+      selectedGateId: id,
+      selectedIds: [id],
+    }));
     get().recompute();
     return id;
   },
@@ -133,13 +157,44 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     }));
   },
 
+  // 複数ゲートをまとめて移動する（グループドラッグ用）
+  moveGates: (positions) => {
+    const map = new Map(positions.map((p) => [p.id, p]));
+    set((s) => ({
+      gates: s.gates.map((g) => {
+        const p = map.get(g.id);
+        return p ? { ...g, x: p.x, y: p.y } : g;
+      }),
+    }));
+  },
+
   removeGate: (id) => {
     set((s) => ({
       gates: s.gates.filter((g) => g.id !== id),
       // つながっていた配線も削除する
       wires: s.wires.filter((w) => w.fromGateId !== id && w.toGateId !== id),
       selectedGateId: s.selectedGateId === id ? null : s.selectedGateId,
+      selectedIds: s.selectedIds.filter((sid) => sid !== id),
       pending: s.pending?.gateId === id ? null : s.pending,
+    }));
+    get().recompute();
+  },
+
+  // 複数ゲートをまとめて削除する（一括削除・ゴミ箱ドロップ用）
+  removeGates: (ids) => {
+    const dead = new Set(ids);
+    if (dead.size === 0) return;
+    set((s) => ({
+      gates: s.gates.filter((g) => !dead.has(g.id)),
+      wires: s.wires.filter(
+        (w) => !dead.has(w.fromGateId) && !dead.has(w.toGateId),
+      ),
+      selectedGateId:
+        s.selectedGateId && dead.has(s.selectedGateId)
+          ? null
+          : s.selectedGateId,
+      selectedIds: s.selectedIds.filter((sid) => !dead.has(sid)),
+      pending: s.pending && dead.has(s.pending.gateId) ? null : s.pending,
     }));
     get().recompute();
   },
@@ -163,7 +218,26 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     }));
   },
 
-  selectGate: (id) => set({ selectedGateId: id }),
+  // 単一選択（既存の選択を置き換える）
+  selectGate: (id) =>
+    set({ selectedGateId: id, selectedIds: id ? [id] : [] }),
+
+  // 選択へ追加 / 解除（選択モードでのタップ用）
+  toggleSelect: (id) =>
+    set((s) => {
+      const exists = s.selectedIds.includes(id);
+      const selectedIds = exists
+        ? s.selectedIds.filter((sid) => sid !== id)
+        : [...s.selectedIds, id];
+      return {
+        selectedIds,
+        selectedGateId: selectedIds[selectedIds.length - 1] ?? null,
+      };
+    }),
+
+  // 選択集合をまとめて差し替える（矩形選択用）
+  setSelection: (ids) =>
+    set({ selectedIds: ids, selectedGateId: ids[ids.length - 1] ?? null }),
 
   startConnection: (port) => set({ pending: port }),
 
@@ -229,6 +303,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
     get().recompute();
   },
 
+  startPaletteDrag: (type, x, y) => set({ paletteDrag: { type, x, y } }),
+  movePaletteDrag: (x, y) =>
+    set((s) => (s.paletteDrag ? { paletteDrag: { ...s.paletteDrag, x, y } } : s)),
+  endPaletteDrag: () => set({ paletteDrag: null }),
+
   setView: (view) => set({ view }),
   resetView: () => set({ view: { x: 0, y: 0, scale: 1 } }),
   requestFit: () => set((s) => ({ fitNonce: s.fitNonce + 1 })),
@@ -268,6 +347,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
       wires: circuit.wires,
       memory,
       selectedGateId: null,
+      selectedIds: [],
       pending: null,
     });
     get().recompute();
@@ -279,6 +359,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => ({
       wires: [],
       memory: {},
       selectedGateId: null,
+      selectedIds: [],
       pending: null,
     });
   },

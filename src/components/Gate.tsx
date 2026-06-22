@@ -15,6 +15,7 @@ interface GateProps {
   outputs: boolean[];
   inputs: boolean[];
   selected: boolean;
+  dragging: boolean; // ドラッグ中の強調表示
   forbidden: boolean; // SR ラッチの禁止状態
   pending: PendingPort | null;
   onBodyPointerDown: (e: ReactPointerEvent, gate: GateModel) => void;
@@ -45,6 +46,7 @@ export function Gate({
   outputs,
   inputs,
   selected,
+  dragging,
   forbidden,
   pending,
   onBodyPointerDown,
@@ -69,7 +71,7 @@ export function Gate({
 
   return (
     <g
-      className="lcs-gate"
+      className={'lcs-gate' + (dragging ? ' dragging' : '')}
       role="button"
       tabIndex={0}
       aria-label={`${meta.name}${glow ? '（出力 HIGH）' : '（出力 LOW）'}`}

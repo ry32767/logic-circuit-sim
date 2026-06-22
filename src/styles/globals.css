@@ -89,6 +89,30 @@ body {
   stroke-dasharray: 5 3;
 }
 
+/* ドラッグ中のゲートを少し大きく＋揺らして強調する */
+.lcs-gate.dragging {
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(1.12);
+}
+.lcs-gate.dragging .lcs-gate-body {
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lcs-gate.dragging {
+    animation: lcs-wobble 0.4s ease-in-out infinite;
+  }
+  @keyframes lcs-wobble {
+    0%,
+    100% {
+      transform: scale(1.12) rotate(-2.5deg);
+    }
+    50% {
+      transform: scale(1.12) rotate(2.5deg);
+    }
+  }
+}
+
 .lcs-gate-label {
   fill: var(--gate-text);
   font-weight: 700;
@@ -166,6 +190,35 @@ body {
   stroke-width: 2;
   stroke-dasharray: 6 4;
   pointer-events: none;
+}
+
+/* ===== 矩形選択（マーキー） ===== */
+.lcs-marquee {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+
+/* ===== ゴミ箱ゾーン・パレットゴースト ===== */
+.lcs-trash {
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lcs-palette-ghost {
+    animation: lcs-ghost-wobble 0.4s ease-in-out infinite;
+  }
+  @keyframes lcs-ghost-wobble {
+    0%,
+    100% {
+      transform: translate(-50%, -50%) rotate(-3deg);
+    }
+    50% {
+      transform: translate(-50%, -50%) rotate(3deg);
+    }
+  }
 }
 
 /* ===== 削除ボタン・警告 ===== */

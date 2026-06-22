@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useCircuitStore } from './stores/circuitStore';
 import { useClocks } from './hooks/useCircuit';
+import { usePaletteDrag } from './hooks/usePaletteDrag';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -9,6 +10,7 @@ import { GateInfo } from './components/GateInfo';
 import { Tutorial } from './components/Tutorial';
 import { WaveformView } from './components/WaveformView';
 import { Icon } from './components/Icon';
+import { GATE_META } from './lib/circuit/gates';
 import { readCircuitFromUrl } from './lib/storage/share';
 
 export default function App() {
@@ -19,6 +21,9 @@ export default function App() {
 
   // CLK タイマーを起動する
   useClocks();
+
+  // サイドバーからのドラッグ配置を駆動し、追従するゴーストの状態を得る
+  const paletteDrag = usePaletteDrag();
 
   // 起動時に URL ハッシュへ回路が埋め込まれていれば読み込む（共有リンク）
   useEffect(() => {
@@ -94,6 +99,21 @@ export default function App() {
           <section>
             <TruthTable />
           </section>
+        </div>
+      )}
+
+      {/* パレットからのドラッグ配置中に指へ追従するゴースト */}
+      {paletteDrag && (
+        <div
+          className="lcs-palette-ghost pointer-events-none fixed z-50 flex h-12 w-16 items-center justify-center rounded-lg border-2 border-emerald-500 bg-white text-sm font-bold text-slate-800 shadow-xl dark:bg-slate-800 dark:text-slate-100"
+          style={{
+            left: paletteDrag.x,
+            top: paletteDrag.y,
+            transform: 'translate(-50%, -50%)',
+          }}
+          aria-hidden="true"
+        >
+          {GATE_META[paletteDrag.type].label}
         </div>
       )}
 
